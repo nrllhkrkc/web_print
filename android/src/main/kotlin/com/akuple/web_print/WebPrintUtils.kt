@@ -11,7 +11,9 @@ import android.print.PrintManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.content.ContextCompat.startActivity
 import com.akuple.web_print.models.BluetoothPrintDevice
+
 
 object WebPrintUtils {
     const val REQUEST_BLUETOOTH_PERM = 0;
@@ -58,6 +60,12 @@ object WebPrintUtils {
                     ?: listOf()
         }
         throw Exception("Bluetooth cihazı açık değil.")
+    }
+
+
+
+    fun  openBluetoothSetting(activity: Activity){
+        activity.startActivity( Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS));
     }
 
 }

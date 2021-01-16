@@ -37,6 +37,9 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
             "getPairedBluetoothDevices" -> {
                 getPairedBluetoothDevices(result)
             }
+            "openBluetoothSettings" -> {
+                openBluetoothSettings(result)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -65,6 +68,11 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
         } catch (e: Exception) {
             pairListResult = result
         }
+    }
+
+    private fun openBluetoothSettings(@NonNull result: Result) {
+        WebPrintUtils.openBluetoothSetting(activity)
+        result.success(true)
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {

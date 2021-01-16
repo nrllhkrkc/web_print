@@ -19,4 +19,8 @@ class WebPrint {
     return List.generate(
         map.length, (index) => PrinterBluetoothDevice.fromJson(map[index]));
   }
+
+  static Future openBluetoothSetting() async {
+    await _channel.invokeMethod('openBluetoothSettings');
+  }
 }

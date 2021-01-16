@@ -40,7 +40,7 @@ class _MyAppState extends State<MyApp> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            WebPrint.printWebUrl("https://akuple.com/fatura");
+            WebPrint.openBluetoothSetting();
           },
           child: Icon(Icons.print),
         ),
