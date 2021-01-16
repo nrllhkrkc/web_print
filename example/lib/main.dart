@@ -1,7 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:web_print/models/PrinterBluetoothDevice.dart';
 import 'package:web_print/web_print.dart';
 
 void main() {
@@ -14,32 +12,15 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
+  List<PrinterBluetoothDevice> _pairedList = [];
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-    WebPrint.printWebUrl("https://akuple.com");
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      platformVersion = await WebPrint.platformVersion;
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
+    WebPrint.getBluetoothPairedDevices().then((value) {
+      setState(() {
+        _pairedList = value;
+      });
     });
   }
 
@@ -51,7 +32,17 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+          child: ListView.builder(
+              itemCount: _pairedList.length,
+              itemBuilder: (_, index) => ListTile(
+                    title: Text(_pairedList[index].name),
+                  )),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            WebPrint.printWebUrl("https://akuple.com/fatura");
+          },
+          child: Icon(Icons.print),
         ),
       ),
     );
