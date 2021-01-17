@@ -7,8 +7,9 @@ import 'package:web_print/models/PrinterBluetoothDevice.dart';
 class WebPrint {
   static const MethodChannel _channel = const MethodChannel('web_print');
 
-  static Future printWebUrl(String url) async {
-    await _channel.invokeMethod('printWebUrl', {'url': url});
+  static Future printWebUrl(String url, {String printerAddress}) async {
+    await _channel.invokeMethod(
+        'printWebUrl', {'url': url, 'printer_address': printerAddress});
   }
 
   static Future<List<PrinterBluetoothDevice>>

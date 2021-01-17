@@ -13,6 +13,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   List<PrinterBluetoothDevice> _pairedList = [];
+  String address;
 
   @override
   void initState() {
@@ -35,12 +36,16 @@ class _MyAppState extends State<MyApp> {
           child: ListView.builder(
               itemCount: _pairedList.length,
               itemBuilder: (_, index) => ListTile(
+                    onTap: () {
+                      address = _pairedList[index].address;
+                    },
                     title: Text(_pairedList[index].name),
                   )),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            WebPrint.openBluetoothSetting();
+            WebPrint.printWebUrl("https://akuple.com/fatura",
+                printerAddress: address);
           },
           child: Icon(Icons.print),
         ),

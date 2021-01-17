@@ -96,9 +96,6 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
     }
 
-    companion object {
-        var printerAddress: String? = null
-    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
 
@@ -116,5 +113,9 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
         return true
 
+    }
+
+    companion object {
+        var printerAddress: String? = null
     }
 }
