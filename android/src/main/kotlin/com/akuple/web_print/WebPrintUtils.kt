@@ -11,7 +11,6 @@ import android.print.PrintManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.core.content.ContextCompat.startActivity
 import com.akuple.web_print.models.BluetoothPrintDevice
 
 
@@ -30,7 +29,7 @@ object WebPrintUtils {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     val printService = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
                     val adapter = view?.createPrintDocumentAdapter("web print")
-                    printService.print("web print", adapter!!, PrintAttributes.Builder().build())
+                    printService.print("Fatura Yazdırma", adapter!!, PrintAttributes.Builder().build())
                 } else {
                     throw Exception("Android 5 and higher versions are supported.")
                 }
@@ -63,9 +62,8 @@ object WebPrintUtils {
     }
 
 
-
-    fun  openBluetoothSetting(activity: Activity){
-        activity.startActivity( Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS));
+    fun openBluetoothSetting(activity: Activity) {
+        activity.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS));
     }
 
 }

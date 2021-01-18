@@ -48,7 +48,8 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
     private fun callPrintWebUrl(@NonNull call: MethodCall, @NonNull result: Result) {
         val url = call.argument<String>("url")
-        printerAddress = call.argument<String>("printer_address")
+        printerAddress = call.argument<String>("printerAddress")
+        topOffset = call.argument<Int>("topOffset")
         if (url != null) {
             try {
                 WebPrintUtils.print(activity, url)
@@ -117,5 +118,6 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
     companion object {
         var printerAddress: String? = null
+        var topOffset: Int? = null
     }
 }

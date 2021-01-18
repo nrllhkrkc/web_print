@@ -3,16 +3,13 @@ package com.akuple.web_print.async;
 import android.content.Context;
 import android.os.AsyncTask;
 
-import com.dantsu.escposprinter.EscPosCharsetEncoding;
+import com.akuple.web_print.WebPrintPlugin;
 import com.dantsu.escposprinter.EscPosPrinter;
 import com.dantsu.escposprinter.connection.DeviceConnection;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
 import com.dantsu.escposprinter.exceptions.EscPosBarcodeException;
 import com.dantsu.escposprinter.exceptions.EscPosConnectionException;
 import com.dantsu.escposprinter.exceptions.EscPosEncodingException;
 import com.dantsu.escposprinter.exceptions.EscPosParserException;
-
-import java.lang.ref.WeakReference;
 
 public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Integer, Integer> {
     protected final static int FINISH_SUCCESS = 1;
@@ -26,6 +23,12 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     protected final static int PROGRESS_CONNECTED = 2;
     protected final static int PROGRESS_PRINTING = 3;
     protected final static int PROGRESS_PRINTED = 4;
+
+    private int topOffset = 0;
+
+    public void setTopOffset(int topOffset) {
+        this.topOffset = topOffset;
+    }
 
     //    protected ProgressDialog dialog;
 //    protected WeakReference<Context> weakContext;
@@ -48,24 +51,31 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             DeviceConnection deviceConnection = printerData.getPrinterConnection();
 
             if (deviceConnection == null) {
-                deviceConnection = BluetoothPrintersConnections.selectFirstPaired();
-            }
-
-            if (deviceConnection == null) {
                 return AsyncEscPosPrint.FINISH_NO_PRINTER;
             }
 
+            CustomEscPosPrinterCommands escPosPrinterCommands = new CustomEscPosPrinterCommands(deviceConnection);
+
             EscPosPrinter printer = new EscPosPrinter(
-                    deviceConnection,
+                    escPosPrinterCommands,
                     printerData.getPrinterDpi(),
                     printerData.getPrinterWidthMM(),
-                    printerData.getPrinterNbrCharactersPerLine(),
-                    new EscPosCharsetEncoding("windows-1252", 16)
+                    printerData.getPrinterNbrCharactersPerLine()
             );
 
             this.publishProgress(AsyncEscPosPrint.PROGRESS_PRINTING);
 
-            printer.printFormattedTextAndCut(printerData.getTextToPrint());
+            escPosPrinterCommands.reset();
+            escPosPrinterCommands.feedByMM(topOffset);
+            escPosPrinterCommands.printText("");
+            escPosPrinterCommands.send();
+
+            printer.printFormattedText(printerData.getTextToPrint(), 0);
+            escPosPrinterCommands.send();
+
+            escPosPrinterCommands.feedPage();
+            escPosPrinterCommands.printText("");
+            escPosPrinterCommands.send();
 
             this.publishProgress(AsyncEscPosPrint.PROGRESS_PRINTED);
 

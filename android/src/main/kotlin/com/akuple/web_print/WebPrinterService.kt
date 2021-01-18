@@ -28,6 +28,8 @@ import kotlin.math.roundToInt
 
 @RequiresApi(Build.VERSION_CODES.KITKAT)
 class WebPrinterService : PrintService() {
+    private var isCancelledJob = false;
+
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
 //            if (priorityList.isNotEmpty()) {
@@ -68,14 +70,22 @@ class WebPrinterService : PrintService() {
 
     override fun onRequestCancelPrintJob(printJob: PrintJob?) {
         Log.d("myprinter", "canceled: " + printJob?.getId()?.toString());
-
+        isCancelledJob = true
         printJob?.cancel()
     }
 
     override fun onPrintJobQueued(printJob: PrintJob?) {
-        if (printJob == null) return;
+        if (printJob == null) return
+
+        if (WebPrintPlugin.printerAddress == null) {
+            printJob.fail("Yazıcı seçilmemiş.Uygulamanın ayarlar bölümünden yazıcı seçebilirsiniz.")
+            return
+        }
+
+        val topOffset = WebPrintPlugin.topOffset;
 
         printJob.start()
+        isCancelledJob = false
 
         val document = printJob.document
         val fis = FileInputStream(document.data!!.fileDescriptor)
@@ -83,7 +93,7 @@ class WebPrinterService : PrintService() {
             val adapter = BluetoothAdapter.getDefaultAdapter()
             val device = adapter.bondedDevices.find { device -> device.address == WebPrintPlugin.printerAddress }
             val printerConnection = if (device != null) BluetoothConnection(device) else null
-            
+
             val printer = AsyncEscPosPrinter(printerConnection, 203, 80f, 32)
 
             val doc = PDDocument.load(fis)
@@ -93,19 +103,29 @@ class WebPrinterService : PrintService() {
             val widthPx = printer.mmToPx(72f)
             bitmap = bitmapToBytes(bitmap, widthPx)
 
+            doc.close()
+
+            if (isCancelledJob) {
+                return
+            }
+
             printer.textToPrint = "<img>" + PrinterTextParserImg.bytesToHexadecimalString(bitmapToBytes(bitmap)) + "</img>";
-            AsyncBluetoothEscPosPrint(printJob).execute(printer)
+            val asyncBluetoothEscPosPrint = AsyncBluetoothEscPosPrint(printJob).apply {
+                setTopOffset(topOffset ?: 0)
+            }
+            val execute = asyncBluetoothEscPosPrint.execute(printer)
+            if (isCancelledJob) execute.cancel(true)
 
         } catch (e: IOException) {
             Log.d("myprinter", "", e)
             printJob.fail("Bir hata oluştu.")
-            return;
+            return
         } finally {
             try {
                 fis.close()
             } catch (e: IOException) {
                 printJob.fail("Bir hata oluştu.")
-                return;
+                return
             }
         }
     }
