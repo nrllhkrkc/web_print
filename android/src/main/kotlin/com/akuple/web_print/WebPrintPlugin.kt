@@ -3,7 +3,6 @@ package com.akuple.web_print
 import android.app.Activity
 import android.content.Intent
 import androidx.annotation.NonNull
-import com.google.gson.Gson
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -65,7 +64,8 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
     private fun getPairedBluetoothDevices(@NonNull result: Result) {
         try {
             val pairedDevices = WebPrintUtils.getPairedDevices(activity)
-            result.success(Gson().toJson(pairedDevices))
+            val map = pairedDevices.map { d -> d.toJson() }
+            result.success(map)
         } catch (e: Exception) {
             pairListResult = result
         }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:web_print/models/PrinterBluetoothDevice.dart';
@@ -15,11 +14,9 @@ class WebPrint {
 
   static Future<List<PrinterBluetoothDevice>>
       getBluetoothPairedDevices() async {
-    final result = await _channel.invokeMethod('getPairedBluetoothDevices');
-    var map = jsonDecode(result);
+    List devices = await _channel.invokeMethod('getPairedBluetoothDevices');
 
-    return List.generate(
-        map.length, (index) => PrinterBluetoothDevice.fromJson(map[index]));
+    return devices.map((e) => PrinterBluetoothDevice.fromJson(e)).toList();
   }
 
   static Future openBluetoothSetting() async {
