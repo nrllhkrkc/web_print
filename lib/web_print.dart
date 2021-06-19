@@ -7,7 +7,7 @@ class WebPrint {
   static const MethodChannel _channel = const MethodChannel('web_print');
 
   static Future printWebUrl(String url,
-      {String printerAddress, int topOffset}) async {
+      {required String printerAddress, int? topOffset}) async {
     await _channel.invokeMethod('printWebUrl',
         {'url': url, 'printerAddress': printerAddress, 'topOffset': topOffset});
   }
