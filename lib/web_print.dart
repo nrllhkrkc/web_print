@@ -8,8 +8,9 @@ class WebPrint {
 
   static Future printWebUrl(String url,
       {required String printerAddress, int? topOffset}) async {
-    await _channel.invokeMethod('printWebUrl',
+    final result = await _channel.invokeMethod('printWebUrl',
         {'url': url, 'printerAddress': printerAddress, 'topOffset': topOffset});
+    print(result);
   }
 
   static Future<List<PrinterBluetoothDevice>>

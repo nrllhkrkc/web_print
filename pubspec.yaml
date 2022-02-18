@@ -1,7 +1,6 @@
 name: web_print
 description: A web page print plugin.
-version: 0.0.2
-author:
+version: 0.0.3
 homepage:
 
 environment:
@@ -31,6 +30,7 @@ flutter:
         package: com.akuple.web_print
         pluginClass: WebPrintPlugin
       ios:
+        package: com.akuple.web_print
         pluginClass: WebPrintPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
