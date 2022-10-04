@@ -30,35 +30,35 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
         when (call.method) {
-            "printWebUrl" -> {
-                callPrintWebUrl(call, result)
+            "printWebView" -> {
+                callPrintWebView(call, result)
             }
+
             "getPairedBluetoothDevices" -> {
                 getPairedBluetoothDevices(result)
             }
+
             "openBluetoothSettings" -> {
                 openBluetoothSettings(result)
             }
+
             else -> {
                 result.notImplemented()
             }
         }
     }
 
-    private fun callPrintWebUrl(@NonNull call: MethodCall, @NonNull result: Result) {
-        val url = call.argument<String>("url")
+    private fun callPrintWebView(@NonNull call: MethodCall, @NonNull result: Result) {
+        val url = call.argument<String?>("url")
+        val html = call.argument<String?>("html")
         printerAddress = call.argument<String>("printerAddress")
         topOffset = call.argument<Int>("topOffset")
-        if (url != null) {
-            try {
-                WebPrintUtils.print(activity, url)
-            } catch (e: Exception) {
-                result.error("ex", e.message, e.stackTrace);
-            }
-            result.success(null)
-        } else {
-            result.error("url", "url parameter cannot be null", null)
+        try {
+            WebPrintUtils.print(activity, url, html)
+        } catch (e: Exception) {
+            result.error("ex", e.message, e.stackTrace);
         }
+        result.success(null)
     }
 
     private fun getPairedBluetoothDevices(@NonNull result: Result) {

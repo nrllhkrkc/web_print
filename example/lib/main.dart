@@ -64,8 +64,10 @@ class _MyAppState extends State<MyApp> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            WebPrint.printWebUrl("https://akuple.com/fatura",
-                printerAddress: address, topOffset: topOffset);
+            WebPrint.printWebView(
+                html: "<html><body><h3>Fuck you</h3>Kes lan</body></html>",
+                printerAddress: address,
+                topOffset: topOffset);
           },
           child: Icon(Icons.print),
         ),

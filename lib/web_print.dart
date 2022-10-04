@@ -6,10 +6,17 @@ import 'package:web_print/models/PrinterBluetoothDevice.dart';
 class WebPrint {
   static const MethodChannel _channel = const MethodChannel('web_print');
 
-  static Future printWebUrl(String url,
-      {required String printerAddress, int? topOffset}) async {
-    final result = await _channel.invokeMethod('printWebUrl',
-        {'url': url, 'printerAddress': printerAddress, 'topOffset': topOffset});
+  static Future printWebView(
+      {String? url,
+      String? html,
+      required String printerAddress,
+      int? topOffset}) async {
+    final result = await _channel.invokeMethod('printWebView', {
+      'url': url,
+      "html": html,
+      'printerAddress': printerAddress,
+      'topOffset': topOffset
+    });
     print(result);
   }
 

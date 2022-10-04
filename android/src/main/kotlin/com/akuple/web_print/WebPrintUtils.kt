@@ -18,7 +18,9 @@ object WebPrintUtils {
     const val REQUEST_BLUETOOTH_PERM = 0;
     const val REQUEST_OPEN_BLUETOOTH_INTENT = 1;
 
-    fun print(context: Context, url: String) {
+    fun print(context: Context, url: String?, htmlDocument: String?) {
+        if (url == null && htmlDocument == null) throw Exception("Html and url params mustn't be null at the same time");
+
         val webView = WebView(context)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -37,7 +39,10 @@ object WebPrintUtils {
         }
         webView.settings.javaScriptEnabled = true
         webView.clearCache(true)
-        webView.loadUrl(url)
+        if (url != null)
+            webView.loadUrl(url)
+        else if (htmlDocument != null)
+            webView.loadDataWithBaseURL(null, htmlDocument, "text/HTML", "UTF-8", null)
     }
 
     private fun isOpenBluetooth(activity: Activity): Boolean {
@@ -56,7 +61,7 @@ object WebPrintUtils {
             val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
             val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
             return pairedDevices?.map { device -> BluetoothPrintDevice(device.name, device.address) }
-                    ?: listOf()
+                ?: listOf()
         }
         throw Exception("Bluetooth cihazı açık değil.")
     }
