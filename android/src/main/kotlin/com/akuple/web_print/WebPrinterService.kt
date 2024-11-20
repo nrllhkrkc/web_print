@@ -19,7 +19,9 @@ import com.akuple.web_print.async.AsyncEscPosPrinter
 import com.dantsu.escposprinter.EscPosPrinterCommands.bitmapToBytes
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import com.dantsu.escposprinter.textparser.PrinterTextParserImg
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.rendering.ImageType
 import com.tom_roush.pdfbox.rendering.PDFRenderer
 import java.io.FileInputStream
 import java.io.IOException
@@ -36,11 +38,14 @@ class WebPrinterService : PrintService() {
 //                return
 //            }
 
+            PDFBoxResourceLoader.init(applicationContext)
+
             removePrinters(priorityList)
 
             val printers: MutableList<PrinterInfo> = ArrayList()
             val printerId = generatePrinterId("servis_cepte_yazdırma_servisi")
-            val builder: PrinterInfo.Builder = PrinterInfo.Builder(printerId, "Servis Cepte Yazdırma Servisi", PrinterInfo.STATUS_IDLE)
+            val builder: PrinterInfo.Builder =
+                PrinterInfo.Builder(printerId, "Servis Cepte Yazdırma Servisi", PrinterInfo.STATUS_IDLE)
             val capBuilder = PrinterCapabilitiesInfo.Builder(printerId)
             capBuilder.addMediaSize(PrintAttributes.MediaSize("80", "80 mm", 4150, 10000), true)
             capBuilder.addResolution(Resolution("resolutionId", "default resolution", 203, 203), true)
@@ -98,10 +103,10 @@ class WebPrinterService : PrintService() {
 
             val doc = PDDocument.load(fis)
             val pdfRenderer = PDFRenderer(doc)
-            var bitmap = pdfRenderer.renderImageWithDPI(0, 203f, Bitmap.Config.RGB_565)
+            var bitmap = pdfRenderer.renderImageWithDPI(0, 203f, ImageType.RGB)
             bitmap = trimBitmap(bitmap)
             val widthPx = printer.mmToPx(72f)
-            bitmap = bitmapToBytes(bitmap, widthPx)
+            bitmap = bitmapToBtm(bitmap, widthPx)
 
             doc.close()
 
@@ -109,7 +114,8 @@ class WebPrinterService : PrintService() {
                 return
             }
 
-            printer.textToPrint = "<img>" + PrinterTextParserImg.bytesToHexadecimalString(bitmapToBytes(bitmap)) + "</img>";
+            printer.textToPrint =
+                "<img>" + PrinterTextParserImg.bytesToHexadecimalString(bitmapToBytes(bitmap, false)) + "</img>";
             val asyncBluetoothEscPosPrint = AsyncBluetoothEscPosPrint(printJob).apply {
                 setTopOffset(topOffset ?: 0)
             }
@@ -130,7 +136,7 @@ class WebPrinterService : PrintService() {
         }
     }
 
-    private fun bitmapToBytes(bitmap: Bitmap, printerWidthPx: Int): Bitmap {
+    private fun bitmapToBtm(bitmap: Bitmap, printerWidthPx: Int): Bitmap {
         var bitmapWidth = bitmap.width
         var bitmapHeight = bitmap.height
         val maxWidth: Int = printerWidthPx
@@ -201,11 +207,11 @@ class WebPrinterService : PrintService() {
             } else break
         }
         return Bitmap.createBitmap(
-                bmp,
-                startWidth,
-                startHeight,
-                endWidth - startWidth,
-                endHeight - startHeight
+            bmp,
+            startWidth,
+            startHeight,
+            endWidth - startWidth,
+            endHeight - startHeight
         )
     }
 

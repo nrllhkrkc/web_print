@@ -13,8 +13,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   List<PrinterBluetoothDevice> _pairedList = [];
-  String address;
-  int topOffset;
+  String? address;
+  late int topOffset;
 
   @override
   void initState() {
@@ -40,7 +40,7 @@ class _MyAppState extends State<MyApp> {
                 padding: const EdgeInsets.all(8.0),
                 child: TextFormField(
                   onFieldSubmitted: (value) {
-                    topOffset = int.tryParse(value);
+                    topOffset = int.tryParse(value)!;
                   },
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(labelText: "Top Offset"),
@@ -66,7 +66,7 @@ class _MyAppState extends State<MyApp> {
           onPressed: () {
             WebPrint.printWebView(
                 html: "<html><body><h3>Fuck you</h3>Kes lan</body></html>",
-                printerAddress: address,
+                printerAddress: address!,
                 topOffset: topOffset);
           },
           child: Icon(Icons.print),
