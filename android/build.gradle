@@ -29,9 +29,10 @@ android {
     namespace 'com.akuple.web_print'
     compileSdk 34
 
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
+    kotlinOptions {
+        jvmTarget = "17"
     }
+
     defaultConfig {
         minSdkVersion 16
     }
