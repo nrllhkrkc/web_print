@@ -9,7 +9,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.2'
+        classpath 'com.android.tools.build:gradle:8.7.3'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -29,8 +29,14 @@ android {
     namespace 'com.akuple.web_print'
     compileSdk 34
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        //coreLibraryDesugaringEnabled true
+    }
+
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = '17'
     }
 
     defaultConfig {
@@ -42,8 +48,8 @@ android {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0"
     implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.3.0'
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
-    implementation "androidx.annotation:annotation:1.7.1"
+    implementation "androidx.annotation:annotation:1.9.1"
 }
