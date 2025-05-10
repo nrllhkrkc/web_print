@@ -67,6 +67,7 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
             val map = pairedDevices.map { d -> d.toJson() }
             result.success(map)
         } catch (e: Exception) {
+            print(e.message);
             pairListResult = result
         }
     }
