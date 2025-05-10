@@ -42,6 +42,10 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
                 openBluetoothSettings(result)
             }
 
+            "pluginTest" -> {
+                result.success("test succeed");
+            }
+
             else -> {
                 result.notImplemented()
             }
@@ -69,6 +73,7 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
         } catch (e: Exception) {
             print(e.message);
             pairListResult = result
+            result.error("ex", e.message, e.stackTrace)
         }
     }
 
