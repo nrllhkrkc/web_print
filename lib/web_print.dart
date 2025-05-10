@@ -30,4 +30,8 @@ class WebPrint {
   static Future openBluetoothSetting() async {
     await _channel.invokeMethod('openBluetoothSettings');
   }
+
+  static Future testPlugin() async {
+    await _channel.invokeMethod('pluginTest');
+  }
 }
