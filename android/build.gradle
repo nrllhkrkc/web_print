@@ -27,12 +27,11 @@ apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.akuple.web_print'
-    compileSdk 34
+    compileSdk 35
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        //coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -40,16 +39,22 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 18
+        consumerProguardFiles 'consumer-proguard-rules.pro'
     }
     lintOptions {
         disable 'InvalidPackage'
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
     }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0"
-    implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.3.0'
+    implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.4.0'
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
     implementation "androidx.annotation:annotation:1.9.1"
 }

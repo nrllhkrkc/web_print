@@ -1,6 +1,6 @@
 package com.akuple.web_print
 
-import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
@@ -95,7 +95,8 @@ class WebPrinterService : PrintService() {
         val document = printJob.document
         val fis = FileInputStream(document.data!!.fileDescriptor)
         try {
-            val adapter = BluetoothAdapter.getDefaultAdapter()
+            val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+            val adapter = bluetoothManager.adapter
             val device = adapter.bondedDevices.find { device -> device.address == WebPrintPlugin.printerAddress }
             val printerConnection = if (device != null) BluetoothConnection(device) else null
 
