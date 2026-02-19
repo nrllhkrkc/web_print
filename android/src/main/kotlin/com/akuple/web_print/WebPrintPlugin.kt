@@ -59,10 +59,10 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
         topOffset = call.argument<Int>("topOffset")
         try {
             WebPrintUtils.print(activity, url, html)
+            result.success(null)
         } catch (e: Exception) {
-            result.error("ex", e.message, e.stackTrace);
+            result.error("ex", e.message, e.stackTraceToString())
         }
-        result.success(null)
     }
 
     private fun getPairedBluetoothDevices(@NonNull result: Result) {
@@ -72,7 +72,6 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
             result.success(map)
         } catch (e: Exception) {
             pairListResult = result
-            result.error("ex", e.message, e.stackTraceToString())
         }
     }
 
@@ -107,12 +106,14 @@ class WebPrintPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRe
 
         when (requestCode) {
             WebPrintUtils.REQUEST_OPEN_BLUETOOTH_INTENT -> {
-                if (resultCode == Activity.RESULT_OK) {
-                    if (pairListResult != null) {
-                        getPairedBluetoothDevices(pairListResult!!)
+                val pendingResult = pairListResult
+                pairListResult = null
+                if (pendingResult != null) {
+                    if (resultCode == Activity.RESULT_OK) {
+                        getPairedBluetoothDevices(pendingResult)
+                    } else {
+                        pendingResult.error("1", "Bluetooth açık değil.", null)
                     }
-                } else {
-                    pairListResult?.error("1", "Bluetooth açık değil.", null)
                 }
             }
         }
