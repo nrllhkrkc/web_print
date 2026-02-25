@@ -50,7 +50,7 @@ class WebPrinterService : PrintService() {
             capBuilder.addMediaSize(PrintAttributes.MediaSize("80", "80 mm", 4150, 10000), true)
             capBuilder.addResolution(Resolution("resolutionId", "default resolution", 203, 203), true)
             capBuilder.setMinMargins(PrintAttributes.Margins.NO_MARGINS)
-            capBuilder.setColorModes(PrintAttributes.COLOR_MODE_MONOCHROME, PrintAttributes.COLOR_MODE_COLOR)
+            capBuilder.setColorModes(PrintAttributes.COLOR_MODE_MONOCHROME, PrintAttributes.COLOR_MODE_MONOCHROME)
             builder.setCapabilities(capBuilder.build())
             printers.add(builder.build())
 
