@@ -24,6 +24,13 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     protected final static int PROGRESS_PRINTING = 3;
     protected final static int PROGRESS_PRINTED = 4;
 
+    /**
+     * Her raster bandı gönderildikten sonra beklenecek süre (ms). Yazıcının iç
+     * tamponunun boşalmasına izin verir. Baskı hâlâ yarıda kesiliyorsa artırın;
+     * bantlar arasında koyuluk farkı görürseniz azaltın.
+     */
+    private final static int BAND_DELAY_MS = 50;
+
     private int topOffset = 0;
 
     public void setTopOffset(int topOffset) {
@@ -70,8 +77,28 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             escPosPrinterCommands.printText("");
             escPosPrinterCommands.send();
 
-            printer.printFormattedText(printerData.getTextToPrint(), 0);
-            escPosPrinterCommands.send();
+            java.util.List<byte[]> bands = printerData.getImageBands();
+            if (bands != null && !bands.isEmpty()) {
+                // Bantları tek tek gönder. printImage() yalnızca raster komutunu yazıp
+                // tamponu boşaltır, satır ilerletme eklemez; bu yüzden bantlar çıktıda
+                // dikişsiz birleşir. Aradaki bekleme, yazıcının tamponunun boşalmasına
+                // izin vererek taşma sonucu oluşan yarıda kesilme/kopmayı önler.
+                for (byte[] band : bands) {
+                    if (this.isCancelled()) {
+                        break;
+                    }
+                    escPosPrinterCommands.printImage(band);
+                    try {
+                        Thread.sleep(BAND_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            } else {
+                printer.printFormattedText(printerData.getTextToPrint(), 0);
+                escPosPrinterCommands.send();
+            }
 
             escPosPrinterCommands.feedPage();
             escPosPrinterCommands.printText("");

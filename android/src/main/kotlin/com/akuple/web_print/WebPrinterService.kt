@@ -18,7 +18,6 @@ import com.akuple.web_print.async.AsyncBluetoothEscPosPrint
 import com.akuple.web_print.async.AsyncEscPosPrinter
 import com.dantsu.escposprinter.EscPosPrinterCommands.bitmapToBytes
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import com.dantsu.escposprinter.textparser.PrinterTextParserImg
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.rendering.ImageType
@@ -31,6 +30,12 @@ import kotlin.math.roundToInt
 @RequiresApi(Build.VERSION_CODES.KITKAT)
 class WebPrinterService : PrintService() {
     private var isCancelledJob = false;
+
+    // Her raster bandının piksel yüksekliği. Belgenin tamamını tek parça göndermek
+    // ucuz termal yazıcıların tamponunu taşırıp baskıyı yarıda kesiyor ve bağlantıyı
+    // düşürüyor; bu yüzden sayfa yatay bantlara bölünüp ayrı ayrı gönderiliyor.
+    // 576 px genişlikte 128 satır ~9 KB eder. Baskı hâlâ yarıda kesiliyorsa düşürün.
+    private val bandHeightPx = 128
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
@@ -112,7 +117,7 @@ class WebPrinterService : PrintService() {
             val pageCount = doc.numberOfPages
             val widthPx = printer.mmToPx(72f)
 
-            val imgParts = StringBuilder()
+            val bands = ArrayList<ByteArray>()
             for (i in 0 until pageCount) {
                 if (isCancelledJob) {
                     doc.close()
@@ -121,9 +126,7 @@ class WebPrinterService : PrintService() {
                 var bitmap = pdfRenderer.renderImageWithDPI(i, 203f, ImageType.RGB)
                 bitmap = trimBitmap(bitmap) ?: bitmap
                 bitmap = bitmapToBtm(bitmap, widthPx)
-                imgParts.append("<img>")
-                imgParts.append(PrinterTextParserImg.bytesToHexadecimalString(bitmapToBytes(bitmap, false)))
-                imgParts.append("</img>\n")
+                bands.addAll(sliceToBands(bitmap, bandHeightPx))
             }
 
             doc.close()
@@ -132,7 +135,7 @@ class WebPrinterService : PrintService() {
                 return
             }
 
-            printer.textToPrint = imgParts.toString()
+            printer.imageBands = bands
             val asyncBluetoothEscPosPrint = AsyncBluetoothEscPosPrint(printJob).apply {
                 setTopOffset(topOffset ?: 0)
             }
@@ -150,6 +153,26 @@ class WebPrinterService : PrintService() {
                 Log.d("myprinter", "Failed to close file stream", e)
             }
         }
+    }
+
+    /**
+     * Bitmap'i [bandHeight] piksel yüksekliğinde yatay bantlara böler ve her bandı
+     * ayrı bir ESC/POS raster komutuna (GS v 0) çevirir.
+     *
+     * Bantlar arasına satır ilerletme komutu girmediği için çıktıda dikiş izi
+     * oluşmaz: yazıcı her raster komutunu bir öncekinin bittiği noktadan bitişik
+     * olarak basar.
+     */
+    private fun sliceToBands(bitmap: Bitmap, bandHeight: Int): List<ByteArray> {
+        val bands = ArrayList<ByteArray>()
+        var y = 0
+        while (y < bitmap.height) {
+            val height = minOf(bandHeight, bitmap.height - y)
+            val band = Bitmap.createBitmap(bitmap, 0, y, bitmap.width, height)
+            bands.add(bitmapToBytes(band, false))
+            y += height
+        }
+        return bands
     }
 
     private fun bitmapToBtm(bitmap: Bitmap, printerWidthPx: Int): Bitmap {
