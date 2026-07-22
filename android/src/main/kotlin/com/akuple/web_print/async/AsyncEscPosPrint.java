@@ -31,6 +31,12 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
      */
     private final static int BAND_DELAY_MS = 50;
 
+    /** Bir bant gönderilemezse kaç kez yeniden bağlanıp denenecek. */
+    private final static int MAX_BAND_ATTEMPTS = 3;
+
+    /** Yeniden bağlanmadan önce yazıcının toparlanması için beklenecek süre (ms). */
+    private final static int RECONNECT_DELAY_MS = 600;
+
     private int topOffset = 0;
 
     public void setTopOffset(int topOffset) {
@@ -83,11 +89,13 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
                 // tamponu boşaltır, satır ilerletme eklemez; bu yüzden bantlar çıktıda
                 // dikişsiz birleşir. Aradaki bekleme, yazıcının tamponunun boşalmasına
                 // izin vererek taşma sonucu oluşan yarıda kesilme/kopmayı önler.
-                for (byte[] band : bands) {
+                android.util.Log.d("myprinter", "Sending " + bands.size() + " bands");
+                for (int i = 0; i < bands.size(); i++) {
                     if (this.isCancelled()) {
+                        android.util.Log.d("myprinter", "Cancelled at band " + i);
                         break;
                     }
-                    escPosPrinterCommands.printImage(band);
+                    sendBand(escPosPrinterCommands, deviceConnection, bands.get(i), i, bands.size());
                     try {
                         Thread.sleep(BAND_DELAY_MS);
                     } catch (InterruptedException e) {
@@ -95,6 +103,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
                         break;
                     }
                 }
+                android.util.Log.d("myprinter", "All bands sent");
             } else {
                 printer.printFormattedText(printerData.getTextToPrint(), 0);
                 escPosPrinterCommands.send();
@@ -107,7 +116,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             this.publishProgress(AsyncEscPosPrint.PROGRESS_PRINTED);
 
         } catch (EscPosConnectionException e) {
-            e.printStackTrace();
+            android.util.Log.e("myprinter", "Printer disconnected mid-print", e);
             return AsyncEscPosPrint.FINISH_PRINTER_DISCONNECTED;
         } catch (EscPosParserException e) {
             e.printStackTrace();
@@ -121,6 +130,73 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
         }
 
         return AsyncEscPosPrint.FINISH_SUCCESS;
+    }
+
+    /**
+     * Tek bir raster bandını gönderir; bağlantı koparsa yeniden bağlanıp tekrar dener.
+     *
+     * Not: printImage() bağlantı kopmuşsa exception atmaz, sessizce hiçbir şey yapmadan
+     * döner. Bu yüzden göndermeden önce isConnected() açıkça kontrol edilir; aksi hâlde
+     * bant kaybolur ve baskı sessizce eksik çıkar.
+     */
+    private void sendBand(
+            CustomEscPosPrinterCommands commands,
+            DeviceConnection connection,
+            byte[] band,
+            int index,
+            int total
+    ) throws EscPosConnectionException {
+        EscPosConnectionException lastError = null;
+
+        for (int attempt = 1; attempt <= MAX_BAND_ATTEMPTS; attempt++) {
+            if (!connection.isConnected()) {
+                reconnect(connection);
+                if (!connection.isConnected()) {
+                    lastError = new EscPosConnectionException("Yazıcı bağlantısı kurulamadı.");
+                    continue;
+                }
+            }
+
+            try {
+                commands.printImage(band);
+                android.util.Log.d("myprinter", "Sent band " + (index + 1) + "/" + total
+                        + " (" + band.length + " bytes)"
+                        + (attempt > 1 ? " after " + attempt + " attempts" : ""));
+                return;
+            } catch (EscPosConnectionException e) {
+                lastError = e;
+                android.util.Log.w("myprinter", "Band " + (index + 1) + "/" + total
+                        + " failed on attempt " + attempt + ", reconnecting", e);
+                reconnect(connection);
+            }
+        }
+
+        throw lastError != null
+                ? lastError
+                : new EscPosConnectionException("Bant gönderilemedi: " + (index + 1) + "/" + total);
+    }
+
+    /** Bağlantıyı kapatıp yeniden açar. Başarısız olursa isConnected() false kalır. */
+    private void reconnect(DeviceConnection connection) {
+        try {
+            connection.disconnect();
+        } catch (Exception ignored) {
+            // Zaten kopmuş olabilir, önemsiz.
+        }
+
+        try {
+            Thread.sleep(RECONNECT_DELAY_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
+        try {
+            connection.connect();
+            android.util.Log.d("myprinter", "Reconnected to printer");
+        } catch (Exception e) {
+            android.util.Log.w("myprinter", "Reconnect failed", e);
+        }
     }
 
     protected void onPreExecute() {

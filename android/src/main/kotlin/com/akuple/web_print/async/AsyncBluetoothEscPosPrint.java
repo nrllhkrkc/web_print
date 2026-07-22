@@ -35,6 +35,8 @@ public class AsyncBluetoothEscPosPrint extends AsyncEscPosPrint {
                     printerData.getPrinterNbrCharactersPerLine()
             );
             printersData[0].setTextToPrint(printerData.getTextToPrint());
+            // Bantlar da kopyalanmalı, yoksa bu yolda yazdırılacak veri kaybolur.
+            printersData[0].setImageBands(printerData.getImageBands());
         }
 
         return super.doInBackground(printersData);

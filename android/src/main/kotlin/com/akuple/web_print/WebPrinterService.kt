@@ -38,11 +38,15 @@ class WebPrinterService : PrintService() {
     // PrintJob ve AsyncTask çağrıları ana thread'de yapılmak zorunda.
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Her raster bandının piksel yüksekliği. Belgenin tamamını tek parça göndermek
-    // ucuz termal yazıcıların tamponunu taşırıp baskıyı yarıda kesiyor ve bağlantıyı
-    // düşürüyor; bu yüzden sayfa yatay bantlara bölünüp ayrı ayrı gönderiliyor.
-    // 576 px genişlikte 128 satır ~9 KB eder. Baskı hâlâ yarıda kesiliyorsa düşürün.
-    private val bandHeightPx = 128
+    // Her raster bandının piksel yüksekliği. Sayfa yatay bantlara bölünüp ayrı ayrı
+    // gönderilir, çünkü tek parça gönderim yazıcının tamponunu taşırıp bağlantıyı
+    // düşürüyor.
+    //
+    // Belirleyici olan ortalama hız değil, anlık patlama (burst): bir bant tek write()
+    // ile link hızında (~2 Mbps) boşalırken yazıcı onu 203 dpi / 50 mm/s ile çok daha
+    // yavaş basar. Bant, yazıcının tamponundan küçük kalmalı.
+    // 576 px genişlikte 32 satır = 2304 bayt; tipik 4 KB tamponun altında.
+    private val bandHeightPx = 32
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {

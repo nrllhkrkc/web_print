@@ -1,6 +1,6 @@
 name: web_print
 description: A web page print plugin.
-version: 0.0.6
+version: 0.0.7
 homepage:
 
 environment:
