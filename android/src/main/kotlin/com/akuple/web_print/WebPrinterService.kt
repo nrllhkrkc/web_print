@@ -4,6 +4,8 @@ import android.bluetooth.BluetoothManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Resolution
 import android.print.PrinterCapabilitiesInfo
@@ -29,7 +31,12 @@ import kotlin.math.roundToInt
 
 @RequiresApi(Build.VERSION_CODES.KITKAT)
 class WebPrinterService : PrintService() {
+    // Ana thread'de yazılıp hazırlık thread'inde okunduğu için volatile olmalı.
+    @Volatile
     private var isCancelledJob = false;
+
+    // PrintJob ve AsyncTask çağrıları ana thread'de yapılmak zorunda.
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     // Her raster bandının piksel yüksekliği. Belgenin tamamını tek parça göndermek
     // ucuz termal yazıcıların tamponunu taşırıp baskıyı yarıda kesiyor ve bağlantıyı
@@ -103,56 +110,58 @@ class WebPrinterService : PrintService() {
             printJob.fail("Yazdırılacak belge verisi alınamadı.")
             return
         }
-        val fis = FileInputStream(fileDescriptor)
-        try {
-            val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-            val adapter = bluetoothManager.adapter
-            val device = adapter.bondedDevices.find { device -> device.address == WebPrintPlugin.printerAddress }
-            val printerConnection = if (device != null) BluetoothConnection(device) else null
-
-            val printer = AsyncEscPosPrinter(printerConnection, 203, 80f, 32)
-
-            val doc = PDDocument.load(fis)
-            val pdfRenderer = PDFRenderer(doc)
-            val pageCount = doc.numberOfPages
-            val widthPx = printer.mmToPx(72f)
-
-            val bands = ArrayList<ByteArray>()
-            for (i in 0 until pageCount) {
-                if (isCancelledJob) {
-                    doc.close()
-                    return
-                }
-                var bitmap = pdfRenderer.renderImageWithDPI(i, 203f, ImageType.RGB)
-                bitmap = trimBitmap(bitmap) ?: bitmap
-                bitmap = bitmapToBtm(bitmap, widthPx)
-                bands.addAll(sliceToBands(bitmap, bandHeightPx))
-            }
-
-            doc.close()
-
-            if (isCancelledJob) {
-                return
-            }
-
-            printer.imageBands = bands
-            val asyncBluetoothEscPosPrint = AsyncBluetoothEscPosPrint(printJob).apply {
-                setTopOffset(topOffset ?: 0)
-            }
-            val execute = asyncBluetoothEscPosPrint.execute(printer)
-            if (isCancelledJob) execute.cancel(true)
-
-        } catch (e: Exception) {
-            Log.d("myprinter", "Print job failed", e)
-            printJob.fail("Bir hata oluştu: ${e.message}")
-            return
-        } finally {
+        // onPrintJobQueued ana (UI) thread'de çağrılır. PDF render + kırpma + raster
+        // dönüşümü saniyeler sürdüğü için burada senkron yapılırsa ana thread kilitlenip
+        // ANR'a yol açıyor. Hazırlık arka planda yapılır; PrintJob ve AsyncTask
+        // işlemleri ana thread'de kalmak zorunda olduğu için sonuç oraya geri gönderilir.
+        Thread {
+            val fis = FileInputStream(fileDescriptor)
             try {
-                fis.close()
-            } catch (e: IOException) {
-                Log.d("myprinter", "Failed to close file stream", e)
+                val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+                val adapter = bluetoothManager.adapter
+                val device = adapter.bondedDevices.find { device -> device.address == WebPrintPlugin.printerAddress }
+                val printerConnection = if (device != null) BluetoothConnection(device) else null
+
+                val printer = AsyncEscPosPrinter(printerConnection, 203, 80f, 32)
+
+                val bands = ArrayList<ByteArray>()
+                val doc = PDDocument.load(fis)
+                try {
+                    val pdfRenderer = PDFRenderer(doc)
+                    val widthPx = printer.mmToPx(72f)
+
+                    for (i in 0 until doc.numberOfPages) {
+                        if (isCancelledJob) return@Thread
+
+                        var bitmap = pdfRenderer.renderImageWithDPI(i, 203f, ImageType.RGB)
+                        bitmap = trimBitmap(bitmap) ?: bitmap
+                        bitmap = bitmapToBtm(bitmap, widthPx)
+                        bands.addAll(sliceToBands(bitmap, bandHeightPx))
+                    }
+                } finally {
+                    doc.close()
+                }
+
+                if (isCancelledJob) return@Thread
+
+                printer.imageBands = bands
+                mainHandler.post {
+                    if (isCancelledJob) return@post
+                    AsyncBluetoothEscPosPrint(printJob)
+                        .apply { setTopOffset(topOffset ?: 0) }
+                        .execute(printer)
+                }
+            } catch (e: Exception) {
+                Log.d("myprinter", "Print job failed", e)
+                mainHandler.post { printJob.fail("Bir hata oluştu: ${e.message}") }
+            } finally {
+                try {
+                    fis.close()
+                } catch (e: IOException) {
+                    Log.d("myprinter", "Failed to close file stream", e)
+                }
             }
-        }
+        }.start()
     }
 
     /**
@@ -186,73 +195,54 @@ class WebPrinterService : PrintService() {
         return Bitmap.createScaledBitmap(bitmap, bitmapWidth, bitmapHeight, false);
     }
 
+    /**
+     * Beyaz olmayan piksellerin sınırlayıcı kutusuna göre bitmap'i kırpar.
+     * Tamamen beyaz bitmap'te null döner.
+     *
+     * Piksel başına bir JNI çağrısı yapan getPixel() yerine satır satır getPixels()
+     * kullanılır: bir A4 sayfası için milyonlarca yerine yalnızca satır sayısı kadar
+     * (~2400) yerel çağrı yapılır.
+     */
     private fun trimBitmap(bmp: Bitmap): Bitmap? {
-        val imgHeight = bmp.height
         val imgWidth = bmp.width
+        val imgHeight = bmp.height
+        val row = IntArray(imgWidth)
 
-        var startWidth = -1
+        var startWidth = imgWidth
         var endWidth = -1
         var startHeight = -1
         var endHeight = -1
 
-        //TRIM WIDTH - LEFT
-        for (x in 0 until imgWidth) {
-            for (y in 0 until imgHeight) {
-                if (bmp.getPixel(x, y) != Color.WHITE) {
-                    startWidth = x
-                    break
+        for (y in 0 until imgHeight) {
+            bmp.getPixels(row, 0, imgWidth, 0, y, imgWidth, 1)
+
+            var firstX = -1
+            var lastX = -1
+            for (x in 0 until imgWidth) {
+                if (row[x] != Color.WHITE) {
+                    if (firstX == -1) firstX = x
+                    lastX = x
                 }
             }
-            if (startWidth != -1) break
+
+            // Satır tamamen beyaz
+            if (firstX == -1) continue
+
+            if (firstX < startWidth) startWidth = firstX
+            if (lastX > endWidth) endWidth = lastX
+            if (startHeight == -1) startHeight = y
+            endHeight = y
         }
 
         // Bitmap tamamen beyazsa kırpma yapma
-        if (startWidth == -1) return null
-
-        //TRIM WIDTH - RIGHT
-        for (x in imgWidth - 1 downTo 0) {
-            for (y in 0 until imgHeight) {
-                if (bmp.getPixel(x, y) != Color.WHITE) {
-                    endWidth = x
-                    break
-                }
-            }
-            if (endWidth != -1) break
-        }
-
-        //TRIM HEIGHT - TOP
-        for (y in 0 until imgHeight) {
-            for (x in 0 until imgWidth) {
-                if (bmp.getPixel(x, y) != Color.WHITE) {
-                    startHeight = y
-                    break
-                }
-            }
-            if (startHeight != -1) break
-        }
-
-        //TRIM HEIGHT - BOTTOM
-        for (y in imgHeight - 1 downTo 0) {
-            for (x in 0 until imgWidth) {
-                if (bmp.getPixel(x, y) != Color.WHITE) {
-                    endHeight = y
-                    break
-                }
-            }
-            if (endHeight != -1) break
-        }
-
-        val width = endWidth - startWidth + 1
-        val height = endHeight - startHeight + 1
-
-        if (width <= 0 || height <= 0) return null
+        if (endWidth == -1) return null
 
         return Bitmap.createBitmap(
             bmp,
             startWidth,
             startHeight,
-            width,
-            height
+            endWidth - startWidth + 1,
+            endHeight - startHeight + 1
         )
     }
 

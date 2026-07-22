@@ -69,13 +69,23 @@ public class CustomEscPosPrinterCommands extends EscPosPrinterCommands {
      * @return Fluent interface
      */
     public EscPosPrinterCommands feedByMM(int mm) throws EscPosConnectionException {
-        if (!this.printerConnection.isConnected()) {
+        if (!this.printerConnection.isConnected() || mm <= 0) {
             return this;
         }
 
-        byte n = (byte) (mm / 0.125);
+        // ESC J n : n nokta satırı besler; n tek bayta sığmak zorunda (0..255).
+        // 203 DPI'da bir nokta ~0.125 mm ettiği için tek komut en fazla ~31.8 mm
+        // besleyebilir. Daha uzun beslemeler birden fazla komuta bölünür.
+        //
+        // Eskiden değer doğrudan byte'a çevriliyordu ve sınırı aşınca taşıyordu:
+        // 32 mm -> 256 -> 0 (hiç beslemez), 40 mm -> 320 -> 64 (8 mm besler).
+        int remainingDots = (int) Math.round(mm / 0.125);
 
-        this.printerConnection.write(new byte[]{0x1B, 0x4A, n});
+        while (remainingDots > 0) {
+            int dots = Math.min(remainingDots, 255);
+            this.printerConnection.write(new byte[]{0x1B, 0x4A, (byte) dots});
+            remainingDots -= dots;
+        }
 
         return this;
     }
