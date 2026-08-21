@@ -63,7 +63,7 @@ class WebPrinterService : PrintService() {
             val builder: PrinterInfo.Builder =
                 PrinterInfo.Builder(printerId, "Servis Cepte Yazdırma Servisi", PrinterInfo.STATUS_IDLE)
             val capBuilder = PrinterCapabilitiesInfo.Builder(printerId)
-            capBuilder.addMediaSize(PrintAttributes.MediaSize("80", "80 mm", 4150, 10000), true)
+            capBuilder.addMediaSize(PrintAttributes.MediaSize("80", "80 mm", 2835, 10000), true)
             capBuilder.addResolution(Resolution("resolutionId", "default resolution", 203, 203), true)
             capBuilder.setMinMargins(PrintAttributes.Margins.NO_MARGINS)
             capBuilder.setColorModes(PrintAttributes.COLOR_MODE_MONOCHROME, PrintAttributes.COLOR_MODE_MONOCHROME)
@@ -138,7 +138,7 @@ class WebPrinterService : PrintService() {
                         if (isCancelledJob) return@Thread
 
                         var bitmap = pdfRenderer.renderImageWithDPI(i, 203f, ImageType.RGB)
-                        bitmap = trimBitmap(bitmap) ?: bitmap
+                        bitmap = trimVertically(bitmap) ?: bitmap
                         bitmap = bitmapToBtm(bitmap, widthPx)
                         bands.addAll(sliceToBands(bitmap, bandHeightPx))
                     }
@@ -200,54 +200,41 @@ class WebPrinterService : PrintService() {
     }
 
     /**
-     * Beyaz olmayan piksellerin sınırlayıcı kutusuna göre bitmap'i kırpar.
-     * Tamamen beyaz bitmap'te null döner.
+     * Bitmap'in yalnızca üstündeki ve altındaki tamamen beyaz satırları atar; genişliğe
+     * dokunmaz. Tamamen beyaz bitmap'te null döner.
+     *
+     * Yatayda kırpma yapılmamasının nedeni: ölçek katsayısı [bitmapToBtm] içinde
+     * genişlikten hesaplanıyor. Her sayfa kendi içerik kutusuna kırpılırsa katsayı
+     * sayfadan sayfaya değişir ve içeriği dar olan sayfa (ör. imza blokları) diğerinden
+     * daha büyük puntoyla basılır. Genişlik sabit kaldığı sürece tüm sayfalar aynı
+     * oranla basılır ve PDF'in kenar boşlukları da olduğu gibi korunur.
      *
      * Piksel başına bir JNI çağrısı yapan getPixel() yerine satır satır getPixels()
      * kullanılır: bir A4 sayfası için milyonlarca yerine yalnızca satır sayısı kadar
      * (~2400) yerel çağrı yapılır.
      */
-    private fun trimBitmap(bmp: Bitmap): Bitmap? {
+    private fun trimVertically(bmp: Bitmap): Bitmap? {
         val imgWidth = bmp.width
         val imgHeight = bmp.height
         val row = IntArray(imgWidth)
 
-        var startWidth = imgWidth
-        var endWidth = -1
         var startHeight = -1
         var endHeight = -1
 
         for (y in 0 until imgHeight) {
             bmp.getPixels(row, 0, imgWidth, 0, y, imgWidth, 1)
 
-            var firstX = -1
-            var lastX = -1
-            for (x in 0 until imgWidth) {
-                if (row[x] != Color.WHITE) {
-                    if (firstX == -1) firstX = x
-                    lastX = x
-                }
-            }
-
             // Satır tamamen beyaz
-            if (firstX == -1) continue
+            if (row.all { it == Color.WHITE }) continue
 
-            if (firstX < startWidth) startWidth = firstX
-            if (lastX > endWidth) endWidth = lastX
             if (startHeight == -1) startHeight = y
             endHeight = y
         }
 
         // Bitmap tamamen beyazsa kırpma yapma
-        if (endWidth == -1) return null
+        if (startHeight == -1) return null
 
-        return Bitmap.createBitmap(
-            bmp,
-            startWidth,
-            startHeight,
-            endWidth - startWidth + 1,
-            endHeight - startHeight + 1
-        )
+        return Bitmap.createBitmap(bmp, 0, startHeight, imgWidth, endHeight - startHeight + 1)
     }
 
 }
